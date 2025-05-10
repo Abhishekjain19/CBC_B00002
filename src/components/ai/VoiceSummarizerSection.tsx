@@ -7,38 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Mic, VolumeX, Volume2, Loader2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-
-// Add type definitions for the Web Speech API
-interface SpeechRecognitionEvent extends Event {
-  results: SpeechRecognitionResultList;
-}
-
-interface SpeechRecognitionResult {
-  transcript: string;
-  confidence: number;
-}
-
-interface SpeechRecognitionAlternative {
-  [index: number]: SpeechRecognitionResult;
-}
-
-interface SpeechRecognitionResultList {
-  [index: number]: SpeechRecognitionAlternative;
-  length: number;
-}
-
-// Type for our Speech Recognition
-type SpeechRecognitionType = {
-  lang: string;
-  interimResults: boolean;
-  maxAlternatives: number;
-  onstart: () => void;
-  onresult: (event: SpeechRecognitionEvent) => void;
-  onerror: (event: Event) => void;
-  onend: () => void;
-  start: () => void;
-  stop: () => void;
-}
+import { SpeechRecognitionEvent, SpeechRecognitionType } from '@/types/speechRecognition';
+import { getAIResponse } from '@/utils/openRouterApi';
 
 const VoiceSummarizerSection = () => {
   const [text, setText] = useState('');
@@ -64,7 +34,7 @@ const VoiceSummarizerSection = () => {
     "Software Testing"
   ];
 
-  // Mock function to generate summaries
+  // Generate summaries using OpenRouter AI
   const generateSummary = async () => {
     if (!text && !topic) {
       toast({
@@ -78,19 +48,38 @@ const VoiceSummarizerSection = () => {
     setIsGenerating(true);
     
     try {
-      // Mock API call delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
       const inputForSummary = text || `Generate a comprehensive summary about ${topic}`;
       
-      // Mock English summary
-      const mockEnglishSummary = `This is a summary of "${text || topic}". The key points include understanding the core concepts, applying best practices, and continuing to learn as the field evolves. This technology is constantly changing, and staying updated with the latest developments is crucial for success.`;
+      // English summary request
+      const englishPrompt = [
+        {
+          role: 'system',
+          content: 'You are a helpful AI that creates concise and informative summaries. Respond with a well-structured summary only.'
+        },
+        {
+          role: 'user',
+          content: `Create a summary of the following text: ${inputForSummary}`
+        }
+      ];
       
-      // Mock Kannada summary
-      const mockKannadaSummary = `ಇದು "${text || topic}" ದ ಸಾರಾಂಶವಾಗಿದೆ. ಪ್ರಮುಖ ಅಂಶಗಳಲ್ಲಿ ಮೂಲ ಪರಿಕಲ್ಪನೆಗಳನ್ನು ಅರ್ಥಮಾಡಿಕೊಳ್ಳುವುದು, ಉತ್ತಮ ಅಭ್ಯಾಸಗಳನ್ನು ಅನ್ವಯಿಸುವುದು ಮತ್ತು ಕ್ಷೇತ್ರವು ವಿಕಸನಗೊಳ್ಳುತ್ತಿರುವಂತೆ ಕಲಿಯುವುದನ್ನು ಮುಂದುವರಿಸುವುದು ಸೇರಿವೆ. ಈ ತಂತ್ರಜ್ಞಾನವು ನಿರಂತರವಾಗಿ ಬದಲಾಗುತ್ತಿದೆ, ಮತ್ತು ಇತ್ತೀಚಿನ ಬೆಳವಣಿಗೆಗಳೊಂದಿಗೆ ನವೀಕರಿಸಿಕೊಂಡಿರುವುದು ಯಶಸ್ಸಿಗೆ ನಿರ್ಣಾಯಕವಾಗಿದೆ.`;
+      const englishSummary = await getAIResponse(englishPrompt);
+      setSummary(englishSummary);
       
-      setSummary(mockEnglishSummary);
-      setKannadaSummary(mockKannadaSummary);
+      // Kannada summary request
+      const kannadaPrompt = [
+        {
+          role: 'system',
+          content: 'You are a helpful AI that creates concise and informative summaries. Respond with a well-structured summary in Kannada language only.'
+        },
+        {
+          role: 'user',
+          content: `Create a summary in Kannada language of the following text: ${inputForSummary}`
+        }
+      ];
+      
+      const kannadaSummaryResponse = await getAIResponse(kannadaPrompt);
+      setKannadaSummary(kannadaSummaryResponse);
+      
     } catch (error) {
       toast({
         title: "Error",
@@ -109,7 +98,7 @@ const VoiceSummarizerSection = () => {
       const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
       
       if (SpeechRecognitionAPI) {
-        const recognition = new SpeechRecognitionAPI() as SpeechRecognitionType;
+        const recognition = new SpeechRecognitionAPI();
         
         recognition.lang = 'en-US';
         recognition.interimResults = false;
@@ -123,13 +112,13 @@ const VoiceSummarizerSection = () => {
           });
         };
         
-        recognition.onresult = (event) => {
+        recognition.onresult = (event: SpeechRecognitionEvent) => {
           const speechResult = event.results[0][0].transcript;
           setText(speechResult);
           setIsListening(false);
         };
         
-        recognition.onerror = (event) => {
+        recognition.onerror = () => {
           setIsListening(false);
           toast({
             title: "Error",

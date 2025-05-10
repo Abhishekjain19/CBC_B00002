@@ -6,6 +6,7 @@ import { Mic, MicOff, Video as VideoIcon, VideoOff, Phone, Users, MessageSquare 
 import { toast } from '@/hooks/use-toast';
 import Layout from '@/components/Layout';
 import WebcamMonitoring from './WebcamMonitoring';
+import { createMeetingRoom, getDailyIframe } from '@/utils/dailyCoApi';
 
 interface ClassSession {
   id: string;
@@ -37,9 +38,70 @@ const VideoClassRoom = ({ session, onLeave, userType }: VideoClassRoomProps) => 
   const [chatOpen, setChatOpen] = useState(false);
   const [messages, setMessages] = useState<{sender: string, message: string}[]>([]);
   const [newMessage, setNewMessage] = useState('');
+  const [dailyUrl, setDailyUrl] = useState<string | null>(null);
+  const [joinedCall, setJoinedCall] = useState(false);
   const localVideoRef = useRef<HTMLVideoElement>(null);
+  const dailyContainerRef = useRef<HTMLDivElement>(null);
+  const dailyCallObject = useRef<any>(null);
   
-  // Initialize local video stream
+  // Initialize Daily.co meeting room
+  useEffect(() => {
+    const initializeDailyRoom = async () => {
+      try {
+        // Create a unique room name using session ID and timestamp
+        const roomName = `class-${session.id}-${Date.now()}`;
+        const url = await createMeetingRoom(roomName);
+        setDailyUrl(url);
+        
+        toast({
+          title: "Video room created",
+          description: "Your Daily.co video room is ready to join"
+        });
+      } catch (error) {
+        console.error("Error creating Daily.co room:", error);
+        toast({
+          title: "Video room error",
+          description: "Failed to create video room. Using fallback video.",
+          variant: "destructive"
+        });
+      }
+    };
+    
+    initializeDailyRoom();
+    
+    return () => {
+      // Clean up Daily.co call if necessary
+      if (dailyCallObject.current) {
+        dailyCallObject.current.leave();
+      }
+    };
+  }, [session.id]);
+
+  // Join Daily.co call
+  const joinDailyCall = async () => {
+    if (!dailyUrl || !dailyContainerRef.current) return;
+    
+    try {
+      const callObject = await getDailyIframe(dailyUrl, dailyContainerRef.current);
+      if (callObject) {
+        dailyCallObject.current = callObject;
+        setJoinedCall(true);
+        toast({
+          title: "Joined video call",
+          description: "You are now connected to the class video call"
+        });
+      }
+    } catch (error) {
+      console.error("Error joining Daily.co call:", error);
+      toast({
+        title: "Call join error",
+        description: "Failed to join video call. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Initialize local video stream (for camera preview before joining call)
   useEffect(() => {
     let stream: MediaStream | null = null;
     
@@ -69,7 +131,7 @@ const VideoClassRoom = ({ session, onLeave, userType }: VideoClassRoomProps) => 
       }
     };
     
-    if (cameraEnabled) {
+    if (cameraEnabled && !joinedCall) {
       startCamera();
     }
     
@@ -81,7 +143,7 @@ const VideoClassRoom = ({ session, onLeave, userType }: VideoClassRoomProps) => 
         });
       }
     };
-  }, [cameraEnabled]);
+  }, [cameraEnabled, joinedCall]);
 
   // Toggle microphone
   const toggleMic = () => {
@@ -154,25 +216,41 @@ const VideoClassRoom = ({ session, onLeave, userType }: VideoClassRoomProps) => 
           {/* Main video section */}
           <div className="lg:col-span-2">
             <div className="bg-black rounded-lg aspect-video relative overflow-hidden">
-              {/* Main video feed (in real app, this would be the teacher) */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <VideoPlaceholder text="Teacher's video" />
-              </div>
+              {/* Daily.co container */}
+              <div 
+                ref={dailyContainerRef} 
+                className={`absolute inset-0 ${joinedCall ? 'block' : 'hidden'}`}
+              ></div>
               
-              {/* Local video feed */}
-              <div className="absolute bottom-4 right-4 w-1/4 aspect-video rounded overflow-hidden border-2 border-white">
-                {cameraEnabled ? (
-                  <video
-                    ref={localVideoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="w-full h-full object-cover bg-gray-900"
-                  />
-                ) : (
-                  <VideoPlaceholder text="Camera off" />
-                )}
-              </div>
+              {/* Video placeholder when not in call */}
+              {!joinedCall && (
+                <>
+                  <div className="absolute inset-0 flex items-center justify-center flex-col">
+                    <VideoPlaceholder text="Join video call to begin" />
+                    {dailyUrl && (
+                      <Button 
+                        onClick={joinDailyCall}
+                        className="mt-4 bg-thinksparkPurple-300 hover:bg-thinksparkPurple-400"
+                      >
+                        Join Video Call
+                      </Button>
+                    )}
+                  </div>
+                  
+                  {/* Local video feed before joining call */}
+                  {cameraEnabled && (
+                    <div className="absolute bottom-4 right-4 w-1/4 aspect-video rounded overflow-hidden border-2 border-white">
+                      <video
+                        ref={localVideoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className="w-full h-full object-cover bg-gray-900"
+                      />
+                    </div>
+                  )}
+                </>
+              )}
             </div>
             
             {/* Video controls */}

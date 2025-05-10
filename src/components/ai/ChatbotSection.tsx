@@ -5,38 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Mic, Send, User, Bot } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-
-// Add type definitions for the Web Speech API
-interface SpeechRecognitionEvent extends Event {
-  results: SpeechRecognitionResultList;
-}
-
-interface SpeechRecognitionResult {
-  transcript: string;
-  confidence: number;
-}
-
-interface SpeechRecognitionAlternative {
-  [index: number]: SpeechRecognitionResult;
-}
-
-interface SpeechRecognitionResultList {
-  [index: number]: SpeechRecognitionAlternative;
-  length: number;
-}
-
-// Type for our Speech Recognition
-type SpeechRecognitionType = {
-  lang: string;
-  interimResults: boolean;
-  maxAlternatives: number;
-  onstart: () => void;
-  onresult: (event: SpeechRecognitionEvent) => void;
-  onerror: (event: Event) => void;
-  onend: () => void;
-  start: () => void;
-  stop: () => void;
-}
+import { getAIResponse, AIMessage } from '@/utils/openRouterApi';
+import { SpeechRecognitionType, SpeechRecognitionEvent } from '@/types/speechRecognition';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -55,24 +25,6 @@ const ChatbotSection = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Mock AI response function
-  const getAIResponse = async (message: string): Promise<string> => {
-    // This would be replaced with actual OpenRouter API call
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const responses = [
-          "That's an interesting question about coding. Let me help you understand it better.",
-          "When approaching this problem, consider breaking it down into smaller steps.",
-          "In programming, there are often multiple solutions. Let's explore the most efficient one.",
-          "This concept is fundamental in computer science. Here's how it works...",
-          "Let me provide some examples to clarify this topic for you."
-        ];
-        const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-        resolve(randomResponse);
-      }, 1500);
-    });
-  };
-
   // Speech recognition function
   const startListening = () => {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
@@ -80,7 +32,7 @@ const ChatbotSection = () => {
       const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
       
       if (SpeechRecognitionAPI) {
-        const recognition = new SpeechRecognitionAPI() as SpeechRecognitionType;
+        const recognition = new SpeechRecognitionAPI();
         
         recognition.lang = 'en-US';
         recognition.interimResults = false;
@@ -94,13 +46,13 @@ const ChatbotSection = () => {
           });
         };
         
-        recognition.onresult = (event) => {
+        recognition.onresult = (event: SpeechRecognitionEvent) => {
           const speechResult = event.results[0][0].transcript;
           setInput(speechResult);
           setIsListening(false);
         };
         
-        recognition.onerror = (event) => {
+        recognition.onerror = () => {
           setIsListening(false);
           toast({
             title: "Error",
@@ -140,8 +92,18 @@ const ChatbotSection = () => {
     setIsProcessing(true);
     
     try {
-      // Get AI response
-      const response = await getAIResponse(input);
+      // Convert chat history to format expected by OpenRouter API
+      const messageHistory: AIMessage[] = [
+        { role: 'system', content: 'You are a helpful AI learning assistant for ThinkSpark educational platform. Provide concise, accurate answers to help students learn.' },
+        ...messages.map(msg => ({ 
+          role: msg.role as 'user' | 'assistant', 
+          content: msg.content 
+        })),
+        { role: 'user', content: userMessage.content }
+      ];
+      
+      // Get AI response using OpenRouter
+      const response = await getAIResponse(messageHistory);
       
       // Add AI message
       const aiMessage: ChatMessage = {
