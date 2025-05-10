@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Link, useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import Logo from '@/components/Logo';
+import { toast } from '@/hooks/use-toast';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -26,6 +27,13 @@ const Login = () => {
       // Store user type in session storage for demo purposes
       sessionStorage.setItem('userType', userType);
       sessionStorage.setItem('isLoggedIn', 'true');
+      
+      // Success toast
+      toast({
+        title: "Welcome back!",
+        description: "You have successfully logged in.",
+      });
+      
       // Redirect based on user type
       navigate(userType === 'student' ? '/dashboard' : '/teacher-dashboard');
     }, 1500);

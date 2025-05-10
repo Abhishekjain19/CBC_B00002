@@ -9,6 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Link, useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import Logo from '@/components/Logo';
+import { toast } from '@/hooks/use-toast';
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -23,7 +24,11 @@ const Signup = () => {
     e.preventDefault();
     
     if (!agreeTerms) {
-      alert('Please agree to the terms and conditions');
+      toast({
+        title: "Terms Required",
+        description: "Please agree to the terms and conditions",
+        variant: "destructive",
+      });
       return;
     }
     
@@ -35,6 +40,13 @@ const Signup = () => {
       // Store user type in session storage for demo purposes
       sessionStorage.setItem('userType', userType);
       sessionStorage.setItem('isLoggedIn', 'true');
+      
+      // Show success toast
+      toast({
+        title: "Account created!",
+        description: `Your ${userType} account has been created successfully.`,
+      });
+      
       // Redirect based on user type
       navigate(userType === 'student' ? '/dashboard' : '/teacher-dashboard');
     }, 1500);
