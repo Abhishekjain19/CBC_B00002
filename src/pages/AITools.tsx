@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
-import { Message, MessageSquare, Mic, Book } from 'lucide-react';
+import { MessageSquare, Mic, Book } from 'lucide-react';
 
 // Import AI components
 import ChatbotSection from '@/components/ai/ChatbotSection';

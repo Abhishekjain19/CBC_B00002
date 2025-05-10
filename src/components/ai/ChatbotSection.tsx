@@ -1,10 +1,42 @@
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Mic, Send, User, Bot } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+
+// Add type definitions for the Web Speech API
+interface SpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognitionResult {
+  transcript: string;
+  confidence: number;
+}
+
+interface SpeechRecognitionAlternative {
+  [index: number]: SpeechRecognitionResult;
+}
+
+interface SpeechRecognitionResultList {
+  [index: number]: SpeechRecognitionAlternative;
+  length: number;
+}
+
+// Type for our Speech Recognition
+type SpeechRecognitionType = {
+  lang: string;
+  interimResults: boolean;
+  maxAlternatives: number;
+  onstart: () => void;
+  onresult: (event: SpeechRecognitionEvent) => void;
+  onerror: (event: Event) => void;
+  onend: () => void;
+  start: () => void;
+  stop: () => void;
+}
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -44,41 +76,45 @@ const ChatbotSection = () => {
   // Speech recognition function
   const startListening = () => {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      const recognition = new SpeechRecognition();
+      // Properly handle browser compatibility
+      const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
       
-      recognition.lang = 'en-US';
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
-      
-      recognition.onstart = () => {
-        setIsListening(true);
-        toast({
-          title: "Listening...",
-          description: "Please speak clearly.",
-        });
-      };
-      
-      recognition.onresult = (event) => {
-        const speechResult = event.results[0][0].transcript;
-        setInput(speechResult);
-        setIsListening(false);
-      };
-      
-      recognition.onerror = (event) => {
-        setIsListening(false);
-        toast({
-          title: "Error",
-          description: "Speech recognition error. Please try again.",
-          variant: "destructive"
-        });
-      };
-      
-      recognition.onend = () => {
-        setIsListening(false);
-      };
-      
-      recognition.start();
+      if (SpeechRecognitionAPI) {
+        const recognition = new SpeechRecognitionAPI() as SpeechRecognitionType;
+        
+        recognition.lang = 'en-US';
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+        
+        recognition.onstart = () => {
+          setIsListening(true);
+          toast({
+            title: "Listening...",
+            description: "Please speak clearly.",
+          });
+        };
+        
+        recognition.onresult = (event) => {
+          const speechResult = event.results[0][0].transcript;
+          setInput(speechResult);
+          setIsListening(false);
+        };
+        
+        recognition.onerror = (event) => {
+          setIsListening(false);
+          toast({
+            title: "Error",
+            description: "Speech recognition error. Please try again.",
+            variant: "destructive"
+          });
+        };
+        
+        recognition.onend = () => {
+          setIsListening(false);
+        };
+        
+        recognition.start();
+      }
     } else {
       toast({
         title: "Not supported",
@@ -129,8 +165,8 @@ const ChatbotSection = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
   
-  // Scroll to bottom on new message
-  useState(() => {
+  // Use useEffect for side effects
+  useEffect(() => {
     scrollToBottom();
   }, [messages]);
 

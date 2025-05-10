@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -8,6 +7,38 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Mic, VolumeX, Volume2, Loader2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+
+// Add type definitions for the Web Speech API
+interface SpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognitionResult {
+  transcript: string;
+  confidence: number;
+}
+
+interface SpeechRecognitionAlternative {
+  [index: number]: SpeechRecognitionResult;
+}
+
+interface SpeechRecognitionResultList {
+  [index: number]: SpeechRecognitionAlternative;
+  length: number;
+}
+
+// Type for our Speech Recognition
+type SpeechRecognitionType = {
+  lang: string;
+  interimResults: boolean;
+  maxAlternatives: number;
+  onstart: () => void;
+  onresult: (event: SpeechRecognitionEvent) => void;
+  onerror: (event: Event) => void;
+  onend: () => void;
+  start: () => void;
+  stop: () => void;
+}
 
 const VoiceSummarizerSection = () => {
   const [text, setText] = useState('');
@@ -74,41 +105,45 @@ const VoiceSummarizerSection = () => {
   // Speech recognition function
   const startListening = () => {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      const recognition = new SpeechRecognition();
+      // Properly handle browser compatibility
+      const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
       
-      recognition.lang = 'en-US';
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
-      
-      recognition.onstart = () => {
-        setIsListening(true);
-        toast({
-          title: "Listening...",
-          description: "Please speak clearly.",
-        });
-      };
-      
-      recognition.onresult = (event) => {
-        const speechResult = event.results[0][0].transcript;
-        setText(speechResult);
-        setIsListening(false);
-      };
-      
-      recognition.onerror = (event) => {
-        setIsListening(false);
-        toast({
-          title: "Error",
-          description: "Speech recognition error. Please try again.",
-          variant: "destructive"
-        });
-      };
-      
-      recognition.onend = () => {
-        setIsListening(false);
-      };
-      
-      recognition.start();
+      if (SpeechRecognitionAPI) {
+        const recognition = new SpeechRecognitionAPI() as SpeechRecognitionType;
+        
+        recognition.lang = 'en-US';
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+        
+        recognition.onstart = () => {
+          setIsListening(true);
+          toast({
+            title: "Listening...",
+            description: "Please speak clearly.",
+          });
+        };
+        
+        recognition.onresult = (event) => {
+          const speechResult = event.results[0][0].transcript;
+          setText(speechResult);
+          setIsListening(false);
+        };
+        
+        recognition.onerror = (event) => {
+          setIsListening(false);
+          toast({
+            title: "Error",
+            description: "Speech recognition error. Please try again.",
+            variant: "destructive"
+          });
+        };
+        
+        recognition.onend = () => {
+          setIsListening(false);
+        };
+        
+        recognition.start();
+      }
     } else {
       toast({
         title: "Not supported",
