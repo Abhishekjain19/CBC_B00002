@@ -27,7 +27,8 @@ export async function createMeetingRoom(roomName: string, expiryMinutes: number 
     }
 
     const data = await response.json();
-    return `https://${data.properties.domain}/${data.name}`;
+    // Use the URL directly from the response
+    return `https://${data.url.split('https://')[1]}`;
   } catch (error) {
     console.error('Error creating Daily.co room:', error);
     throw error;

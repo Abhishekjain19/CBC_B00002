@@ -13,6 +13,7 @@ import Quiz from "./pages/Quiz";
 import AITools from "./pages/AITools";
 import VideoClasses from "./pages/VideoClasses";
 import InnovationHub from "./pages/InnovationHub";
+import ResumeBuilder from "./pages/ResumeBuilder";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +34,7 @@ const App = () => (
           <Route path="/ai-tools" element={<AITools />} />
           <Route path="/video-classes" element={<VideoClasses />} />
           <Route path="/innovation-hub" element={<InnovationHub />} />
+          <Route path="/resume-builder" element={<ResumeBuilder />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

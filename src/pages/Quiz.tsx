@@ -1,5 +1,4 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,30 +6,113 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Book } from 'lucide-react';
+import { Book, Loader2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { generateQuizQuestions, QuizQuestion } from '@/utils/quizGenerator';
 
-// Mock data for domains, subjects, etc.
-const domains = ["Computer Science", "Information Technology", "AI & ML"];
+// Enhanced domains and subjects data
+const domains = [
+  "Computer Science", 
+  "Information Technology", 
+  "AI & ML", 
+  "Software Engineering",
+  "Data Science",
+  "Cybersecurity",
+  "Computer Architecture"
+];
+
 const subjectsByDomain = {
-  "Computer Science": ["Data Structures", "Algorithms", "Operating Systems"],
-  "Information Technology": ["Web Development", "Networking", "Cloud Computing"],
-  "AI & ML": ["Machine Learning", "Deep Learning", "Natural Language Processing"]
+  "Computer Science": [
+    "Data Structures", 
+    "Algorithms", 
+    "Operating Systems", 
+    "Database Systems", 
+    "Compilers", 
+    "Computer Networks",
+    "Theory of Computation"
+  ],
+  "Information Technology": [
+    "Web Development", 
+    "Networking", 
+    "Cloud Computing", 
+    "IT Project Management", 
+    "System Administration"
+  ],
+  "AI & ML": [
+    "Machine Learning", 
+    "Deep Learning", 
+    "Natural Language Processing", 
+    "Computer Vision", 
+    "Reinforcement Learning"
+  ],
+  "Software Engineering": [
+    "Software Design Patterns", 
+    "Agile Methodology", 
+    "DevOps", 
+    "Testing & QA", 
+    "Software Architecture"
+  ],
+  "Data Science": [
+    "Statistical Analysis", 
+    "Big Data Processing", 
+    "Data Visualization", 
+    "Data Mining", 
+    "Predictive Analytics"
+  ],
+  "Cybersecurity": [
+    "Network Security", 
+    "Cryptography", 
+    "Ethical Hacking", 
+    "Security Compliance", 
+    "Digital Forensics"
+  ],
+  "Computer Architecture": [
+    "CPU Design", 
+    "Memory Systems", 
+    "Parallel Computing", 
+    "Computer Organization", 
+    "VLSI Design"
+  ]
 };
+
 const topicsBySubject = {
-  "Data Structures": ["Arrays", "Linked Lists", "Trees"],
-  "Algorithms": ["Sorting", "Searching", "Dynamic Programming"],
-  "Operating Systems": ["Process Management", "Memory Management", "File Systems"],
-  "Web Development": ["HTML/CSS", "JavaScript", "React"],
-  "Networking": ["TCP/IP", "OSI Model", "Network Security"],
-  "Cloud Computing": ["AWS", "Azure", "GCP"],
-  "Machine Learning": ["Supervised Learning", "Unsupervised Learning", "Reinforcement Learning"],
-  "Deep Learning": ["Neural Networks", "CNN", "RNN"],
-  "Natural Language Processing": ["Text Processing", "Sentiment Analysis", "Language Models"]
+  // Computer Science subjects
+  "Data Structures": ["Arrays", "Linked Lists", "Trees", "Graphs", "Hash Tables", "Heaps", "Stacks & Queues"],
+  "Algorithms": ["Sorting", "Searching", "Dynamic Programming", "Greedy Algorithms", "Graph Algorithms", "Divide & Conquer"],
+  "Operating Systems": ["Process Management", "Memory Management", "File Systems", "Virtualization", "Concurrency"],
+  "Database Systems": ["SQL", "Relational Model", "Indexing", "Transactions", "NoSQL", "Query Optimization"],
+  "Compilers": ["Lexical Analysis", "Parsing", "Semantic Analysis", "Code Generation", "Optimization"],
+  "Computer Networks": ["OSI Model", "TCP/IP", "Routing", "Network Security", "Wireless Networks", "Protocol Design"],
+  "Theory of Computation": ["Automata Theory", "Formal Languages", "Computability", "Complexity Classes", "NP-Completeness"],
+
+  // Information Technology subjects
+  "Web Development": ["HTML/CSS", "JavaScript", "React", "Backend Development", "RESTful APIs", "Web Security"],
+  "Networking": ["TCP/IP", "OSI Model", "Network Security", "Subnetting", "DNS", "DHCP", "VPN"],
+  "Cloud Computing": ["AWS", "Azure", "GCP", "IaaS", "PaaS", "SaaS", "Serverless Computing"],
+  "IT Project Management": ["Agile", "Scrum", "Kanban", "ITIL", "Risk Management", "Resource Allocation"],
+  "System Administration": ["Linux Administration", "Windows Server", "Shell Scripting", "Virtualization", "Containerization"],
+
+  // AI & ML subjects
+  "Machine Learning": ["Supervised Learning", "Unsupervised Learning", "Feature Engineering", "Model Evaluation", "Ensemble Methods"],
+  "Deep Learning": ["Neural Networks", "CNN", "RNN", "Transformers", "GANs", "Attention Mechanisms"],
+  "Natural Language Processing": ["Text Processing", "Sentiment Analysis", "Language Models", "Machine Translation", "Named Entity Recognition"],
+  "Computer Vision": ["Image Classification", "Object Detection", "Image Segmentation", "Feature Extraction", "Face Recognition"],
+  "Reinforcement Learning": ["Markov Decision Processes", "Q-Learning", "Policy Gradients", "Deep Q Networks", "Multi-agent Systems"],
+
+  // Software Engineering
+  "Software Design Patterns": ["Creational Patterns", "Structural Patterns", "Behavioral Patterns", "Architectural Patterns", "Anti-patterns"],
+  "Agile Methodology": ["Scrum", "Kanban", "Extreme Programming", "User Stories", "Sprint Planning", "Retrospectives"],
+  "DevOps": ["CI/CD", "Infrastructure as Code", "Monitoring", "Docker", "Kubernetes", "Microservices"],
+  "Testing & QA": ["Unit Testing", "Integration Testing", "System Testing", "Test-Driven Development", "Automated Testing"],
+  "Software Architecture": ["Microservices", "Monolith", "Event-Driven", "Layered Architecture", "Service-Oriented Architecture"],
+
+  // Additional subjects for other domains
+  // ... keep existing code for the rest of the topics
 };
+
 const difficultyLevels = ["Easy", "Medium", "Hard"];
 
-// Mock quiz questions
+// Mock quiz questions (as backup if AI generation fails)
 const mockQuizzes = {
   "Arrays": {
     "Easy": [
@@ -77,6 +159,8 @@ const Quiz = () => {
   const [showExplanation, setShowExplanation] = useState(false);
   const [score, setScore] = useState(0);
   const [quizFinished, setQuizFinished] = useState(false);
+  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   
   // Filter subjects based on selected domain
   const availableSubjects = selectedDomain ? subjectsByDomain[selectedDomain] || [] : [];
@@ -84,14 +168,10 @@ const Quiz = () => {
   // Filter topics based on selected subject
   const availableTopics = selectedSubject ? topicsBySubject[selectedSubject] || [] : [];
   
-  // Get current quiz questions
-  const currentQuiz = selectedTopic && selectedDifficulty ? 
-    mockQuizzes[selectedTopic]?.[selectedDifficulty] || [] : [];
-  
   // Current question
-  const currentQuestion = currentQuiz[currentQuestionIndex];
+  const currentQuestion = questions[currentQuestionIndex];
 
-  const handleStartQuiz = () => {
+  const handleStartQuiz = async () => {
     if (!selectedDomain || !selectedSubject || !selectedTopic || !selectedDifficulty) {
       toast({
         title: "Missing selection",
@@ -101,21 +181,49 @@ const Quiz = () => {
       return;
     }
     
-    if (!currentQuiz.length) {
-      toast({
-        title: "No questions available",
-        description: "No questions available for the selected criteria. Please try another selection.",
-        variant: "destructive"
-      });
-      return;
-    }
+    setIsLoading(true);
     
-    setQuizStarted(true);
-    setCurrentQuestionIndex(0);
-    setScore(0);
-    setQuizFinished(false);
-    setShowExplanation(false);
-    setSelectedAnswer("");
+    try {
+      // Try to generate questions using AI
+      const generatedQuestions = await generateQuizQuestions(selectedTopic, selectedDifficulty, 5);
+      setQuestions(generatedQuestions);
+      
+      setQuizStarted(true);
+      setCurrentQuestionIndex(0);
+      setScore(0);
+      setQuizFinished(false);
+      setShowExplanation(false);
+      setSelectedAnswer("");
+    } catch (error) {
+      console.error("Failed to generate questions:", error);
+      
+      // Fall back to mock questions if AI generation fails
+      const fallbackQuestions = mockQuizzes[selectedTopic]?.[selectedDifficulty] || [];
+      
+      if (fallbackQuestions.length > 0) {
+        setQuestions(fallbackQuestions);
+        setQuizStarted(true);
+        setCurrentQuestionIndex(0);
+        setScore(0);
+        setQuizFinished(false);
+        setShowExplanation(false);
+        setSelectedAnswer("");
+        
+        toast({
+          title: "Using sample questions",
+          description: "Could not generate new questions. Using pre-defined questions instead.",
+          variant: "default"
+        });
+      } else {
+        toast({
+          title: "No questions available",
+          description: "No questions available for the selected criteria. Please try another selection.",
+          variant: "destructive"
+        });
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSubmitAnswer = () => {
@@ -137,7 +245,7 @@ const Quiz = () => {
   };
 
   const handleNextQuestion = () => {
-    if (currentQuestionIndex < currentQuiz.length - 1) {
+    if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
       setSelectedAnswer("");
       setShowExplanation(false);
@@ -157,6 +265,7 @@ const Quiz = () => {
     setShowExplanation(false);
     setScore(0);
     setQuizFinished(false);
+    setQuestions([]);
   };
 
   return (
@@ -246,8 +355,16 @@ const Quiz = () => {
                 <Button 
                   onClick={handleStartQuiz} 
                   className="mt-4 bg-thinksparkPurple-300 hover:bg-thinksparkPurple-400"
+                  disabled={isLoading}
                 >
-                  Start Quiz
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Generating Quiz...
+                    </>
+                  ) : (
+                    "Start Quiz"
+                  )}
                 </Button>
               </div>
             </CardContent>
@@ -257,13 +374,13 @@ const Quiz = () => {
             <CardHeader>
               <CardTitle>Quiz Completed!</CardTitle>
               <CardDescription>
-                Your score: {score} out of {currentQuiz.length}
+                Your score: {score} out of {questions.length}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex justify-center my-6">
                 <div className="text-6xl font-bold text-thinksparkPurple-300">
-                  {Math.round((score / currentQuiz.length) * 100)}%
+                  {Math.round((score / questions.length) * 100)}%
                 </div>
               </div>
               
@@ -281,7 +398,7 @@ const Quiz = () => {
               <div className="flex justify-between items-center">
                 <div>
                   <CardTitle>{selectedTopic} - {selectedDifficulty}</CardTitle>
-                  <CardDescription>Question {currentQuestionIndex + 1} of {currentQuiz.length}</CardDescription>
+                  <CardDescription>Question {currentQuestionIndex + 1} of {questions.length}</CardDescription>
                 </div>
                 <div className="text-right">
                   <div className="text-sm">Score</div>
@@ -348,7 +465,7 @@ const Quiz = () => {
                       onClick={handleNextQuestion}
                       className="w-full bg-thinksparkPurple-300 hover:bg-thinksparkPurple-400"
                     >
-                      {currentQuestionIndex < currentQuiz.length - 1 ? "Next Question" : "Finish Quiz"}
+                      {currentQuestionIndex < questions.length - 1 ? "Next Question" : "Finish Quiz"}
                     </Button>
                   )}
                 </div>
