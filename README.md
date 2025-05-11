@@ -7,7 +7,7 @@
 ## 🚀 Features
 
 ### 🔒 Individual Student Proctoring System
-- Uses AI-powered object detection (YOLOv8) to identify distractions such as mobile phones.
+- Uses AI-powered object detection (ZEGOCLOUD) to identify distractions such as mobile phones.
 - Real-time webcam monitoring during live classes or exams.
 - Visual alerts and bounding boxes highlight policy violations.
 - Teacher/admin monitoring dashboard.
@@ -43,8 +43,8 @@
 
 - **Frontend**: React.js, TailwindCSS, Framer Motion  
 - **Backend/DB**: Supabase  
-- **AI Integration**: OpenRouter AI API, YOLOv8 (Ultralytics)  
-- **Video Communication**: Daily.co  
+- **AI Integration**: OpenRouter AI API, TEACHABLE MACHINE (Ultralytics)  
+- **Video Communication**: ZEGOCLOUD
 
 ---
 
