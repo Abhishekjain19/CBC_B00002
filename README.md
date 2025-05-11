@@ -28,7 +28,7 @@
 - Auto-evaluation and feedback.
 
 ### 🎥 Live Video Classes
-- Powered by [Daily.co](https://www.daily.co).
+- Powered by ZEGOCLOUD.
 - Real-time communication with screen sharing and chat.
 - Scheduling and notification system for teachers and students.
 
