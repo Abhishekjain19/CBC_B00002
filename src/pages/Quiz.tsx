@@ -161,6 +161,7 @@ const Quiz = () => {
   const [quizFinished, setQuizFinished] = useState(false);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [showYoutubeModal, setShowYoutubeModal] = useState(false);
   
   // Filter subjects based on selected domain
   const availableSubjects = selectedDomain ? subjectsByDomain[selectedDomain] || [] : [];
@@ -170,6 +171,14 @@ const Quiz = () => {
   
   // Current question
   const currentQuestion = questions[currentQuestionIndex];
+
+  useEffect(() => {
+    if (quizFinished && score < questions.length / 2 && questions.length > 0) {
+      setShowYoutubeModal(true);
+    } else {
+      setShowYoutubeModal(false);
+    }
+  }, [quizFinished, score, questions.length]);
 
   const handleStartQuiz = async () => {
     if (!selectedDomain || !selectedSubject || !selectedTopic || !selectedDifficulty) {
@@ -472,6 +481,23 @@ const Quiz = () => {
               </div>
             </CardContent>
           </Card>
+        )}
+        {quizFinished && showYoutubeModal && (
+          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-lg">
+              <h3 className="text-lg font-bold mb-2">Need More Help?</h3>
+              <p className="mb-4">Your score is below 50%. We recommend watching some YouTube lectures and tutorials on <b>{selectedTopic}</b> to improve your understanding.</p>
+              <a
+                href={`https://www.youtube.com/results?search_query=${encodeURIComponent(selectedTopic + ' tutorial lecture')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block mb-4 text-blue-600 underline"
+              >
+                Search YouTube for "{selectedTopic} tutorial lecture"
+              </a>
+              <Button onClick={() => setShowYoutubeModal(false)} className="bg-thinksparkPurple-300 hover:bg-thinksparkPurple-400 w-full">Close</Button>
+            </div>
+          </div>
         )}
       </div>
     </Layout>

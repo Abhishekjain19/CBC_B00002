@@ -1,7 +1,6 @@
-
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Layout from '@/components/Layout';
-import { FileText, Plus, Trash2, Download, Book, Briefcase, Award, User } from 'lucide-react';
+import { FileText, Plus, Trash2, Download, Book, Briefcase, Award, User, Code } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,6 +9,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/hooks/use-toast';
 import { getAIResponse, AIMessage } from '@/utils/openRouterApi';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 interface Education {
   id: string;
@@ -45,7 +46,20 @@ interface PersonalInfo {
   summary: string;
 }
 
-const ResumeBuilder = () => {
+interface Project {
+  id: string;
+  name: string;
+  description: string;
+}
+
+interface Certification {
+  id: string;
+  name: string;
+  issuer: string;
+  date: string;
+}
+
+const ResumeBuilder = ({ startFresh = false }: { startFresh?: boolean }) => {
   const [activeTab, setActiveTab] = useState('personal');
   const [personalInfo, setPersonalInfo] = useState<PersonalInfo>({
     name: '',
@@ -59,6 +73,8 @@ const ResumeBuilder = () => {
   const [experience, setExperience] = useState<Experience[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
   const [generatingAI, setGeneratingAI] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [certifications, setCertifications] = useState<Certification[]>([]);
   
   const generateId = () => Math.random().toString(36).substring(2, 11);
   
@@ -184,14 +200,65 @@ const ResumeBuilder = () => {
     }
   };
   
-  const downloadResume = () => {
-    // This is a placeholder for the real PDF generation functionality
-    // In a real app, you would use a library like jsPDF or react-pdf
-    toast({
-      title: "Resume download",
-      description: "PDF generation would be implemented here in the full version.",
-    });
+  const resumeRef = useRef<HTMLDivElement>(null);
+
+  // PDF download using jsPDF and html2canvas
+  const downloadResume = async () => {
+    if (!resumeRef.current) return;
+    const element = resumeRef.current;
+    const canvas = await html2canvas(element, { scale: 2 });
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const imgProps = pdf.getImageProperties(imgData);
+    const pdfWidth = pageWidth;
+    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    pdf.save('resume.pdf');
   };
+
+  // Load progress from sessionStorage
+  useEffect(() => {
+    if (startFresh) {
+      sessionStorage.removeItem('resumeData');
+      sessionStorage.removeItem('resumePromptsCount');
+      sessionStorage.removeItem('resumePromptsCompleted');
+    } else {
+      const saved = sessionStorage.getItem('resumeData');
+      if (saved) {
+        const data = JSON.parse(saved);
+        setPersonalInfo(data.personalInfo || personalInfo);
+        setEducation(data.education || []);
+        setExperience(data.experience || []);
+        setSkills(data.skills || []);
+        setProjects(data.projects || []);
+        setCertifications(data.certifications || []);
+      }
+    }
+    // Prefill professional title if coming from career guidance
+    const suggestedTitle = sessionStorage.getItem('resumeCareerTitle');
+    if (suggestedTitle && !personalInfo.title) {
+      setPersonalInfo(prev => ({ ...prev, title: suggestedTitle }));
+      sessionStorage.removeItem('resumeCareerTitle');
+    }
+  }, [startFresh]);
+
+  // Save progress after each change
+  useEffect(() => {
+    const data = { personalInfo, education, experience, skills, projects, certifications };
+    sessionStorage.setItem('resumeData', JSON.stringify(data));
+    // Count prompts completed (basic: count non-empty fields in personalInfo)
+    let count = 0;
+    if (personalInfo.name) count++;
+    if (personalInfo.email) count++;
+    if (personalInfo.phone) count++;
+    if (education.length > 0) count++;
+    if (skills.length > 0) count++;
+    sessionStorage.setItem('resumePromptsCount', String(count));
+    if (count >= 5) sessionStorage.setItem('resumePromptsCompleted', 'complete');
+    else sessionStorage.removeItem('resumePromptsCompleted');
+  }, [personalInfo, education, experience, skills, projects, certifications]);
 
   return (
     <Layout>
@@ -200,7 +267,11 @@ const ResumeBuilder = () => {
           <FileText className="h-8 w-8 text-thinksparkPurple-400" />
           Resume Builder
         </h1>
-        
+        <div className="flex justify-end mb-4">
+          <Button onClick={downloadResume} className="bg-green-500 hover:bg-green-600 text-white flex items-center gap-2">
+            <Download className="h-4 w-4" /> Download Resume
+          </Button>
+        </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             <Card>
@@ -504,85 +575,44 @@ const ResumeBuilder = () => {
             </Card>
           </div>
           
-          {/* Preview & Actions */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-20">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Resume Preview</CardTitle>
-                  <CardDescription>
-                    A simplified preview of your resume
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="prose max-w-none">
-                  {personalInfo.name && <h3 className="text-xl font-bold mb-1">{personalInfo.name}</h3>}
-                  {personalInfo.title && <p className="text-muted-foreground mb-2">{personalInfo.title}</p>}
-                  
-                  <div className="flex flex-wrap gap-2 text-sm mb-4">
-                    {personalInfo.email && <span className="text-muted-foreground">{personalInfo.email}</span>}
-                    {personalInfo.phone && <span className="text-muted-foreground">{personalInfo.phone}</span>}
-                    {personalInfo.location && <span className="text-muted-foreground">{personalInfo.location}</span>}
-                  </div>
-                  
-                  {personalInfo.summary && (
-                    <div className="mb-4">
-                      <h4 className="text-sm font-semibold">Summary</h4>
-                      <p className="text-sm">{personalInfo.summary}</p>
-                    </div>
-                  )}
-                  
-                  {experience.length > 0 && (
-                    <div className="mb-4">
-                      <h4 className="text-sm font-semibold">Experience</h4>
-                      <ul className="list-none p-0 m-0">
-                        {experience.map((exp, i) => (
-                          <li key={i} className="text-sm mb-1">
-                            {exp.position && exp.company ? `${exp.position} at ${exp.company}` : 
-                              exp.position || exp.company || "Position details"}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  
-                  {education.length > 0 && (
-                    <div className="mb-4">
-                      <h4 className="text-sm font-semibold">Education</h4>
-                      <ul className="list-none p-0 m-0">
-                        {education.map((edu, i) => (
-                          <li key={i} className="text-sm mb-1">
-                            {edu.degree && edu.institution ? `${edu.degree} from ${edu.institution}` : 
-                              edu.degree || edu.institution || "Education details"}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  
-                  {skills.length > 0 && (
-                    <div>
-                      <h4 className="text-sm font-semibold">Skills</h4>
-                      <div className="flex flex-wrap gap-1">
-                        {skills.map((skill, i) => (
-                          <span key={i} className="text-sm bg-muted px-2 py-1 rounded-md">
-                            {skill.name || "Skill"}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-              
-              <div className="mt-4">
-                <Button 
-                  className="w-full bg-thinksparkPurple-300 hover:bg-thinksparkPurple-400"
-                  onClick={downloadResume}
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Download Resume
-                </Button>
-              </div>
+          {/* Resume Preview Section */}
+          <div>
+            <div ref={resumeRef} className="bg-white p-6 rounded shadow-md border border-gray-200">
+              {/* Render the resume preview here, e.g. personalInfo, education, experience, skills, etc. */}
+              <h2 className="text-2xl font-bold mb-2">{personalInfo.name || 'Your Name'}</h2>
+              <div className="text-lg text-gray-600 mb-2">{personalInfo.title || 'Professional Title'}</div>
+              <div className="text-sm text-gray-500 mb-4">{personalInfo.email} | {personalInfo.phone} | {personalInfo.location}</div>
+              <div className="mb-4"><b>Summary:</b> {personalInfo.summary}</div>
+              <div className="mb-2 font-semibold">Education</div>
+              <ul className="mb-4">
+                {education.map(edu => (
+                  <li key={edu.id}>{edu.degree} in {edu.field}, {edu.institution} ({edu.startDate} - {edu.endDate})</li>
+                ))}
+              </ul>
+              <div className="mb-2 font-semibold">Experience</div>
+              <ul className="mb-4">
+                {experience.map(exp => (
+                  <li key={exp.id}>{exp.position} at {exp.company}, {exp.location} ({exp.startDate} - {exp.endDate})<br />{exp.description}</li>
+                ))}
+              </ul>
+              <div className="mb-2 font-semibold">Skills</div>
+              <ul className="mb-4">
+                {skills.map(skill => (
+                  <li key={skill.id}>{skill.name} (Level: {skill.level})</li>
+                ))}
+              </ul>
+              <div className="mb-2 font-semibold">Projects</div>
+              <ul className="mb-4">
+                {projects.map(proj => (
+                  <li key={proj.id}>{proj.name}: {proj.description}</li>
+                ))}
+              </ul>
+              <div className="mb-2 font-semibold">Certifications</div>
+              <ul>
+                {certifications.map(cert => (
+                  <li key={cert.id}>{cert.name} - {cert.issuer} ({cert.date})</li>
+                ))}
+              </ul>
             </div>
           </div>
         </div>

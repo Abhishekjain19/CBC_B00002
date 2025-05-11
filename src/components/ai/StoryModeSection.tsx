@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +9,8 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { BookText, Loader2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { useCareerAdvice } from './CareerAdviceContext';
+import { useNavigate } from 'react-router-dom';
 
 interface Question {
   question: string;
@@ -28,6 +29,8 @@ const StoryModeSection = () => {
   const [selectedAnswer, setSelectedAnswer] = useState('');
   const [score, setScore] = useState(0);
   const [quizFinished, setQuizFinished] = useState(false);
+  const { addSearch, showCareerModal, careerPaths, topicTrend, setShowCareerModal } = useCareerAdvice();
+  const navigate = useNavigate();
 
   // Predefined topics
   const topics = [
@@ -135,6 +138,9 @@ The journey of ${finalTopic} represents one of humanity's most fascinating techn
       setScore(0);
       setQuizFinished(false);
       
+      // Track topics (shared)
+      addSearch(finalTopic);
+      
     } catch (error) {
       toast({
         title: "Error",
@@ -240,6 +246,21 @@ The journey of ${finalTopic} represents one of humanity's most fascinating techn
                 )}
               </Button>
             </div>
+            {showCareerModal && (
+              <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+                <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-lg">
+                  <h3 className="text-lg font-bold mb-2">Career Paths Related to "{topicTrend}"</h3>
+                  <ul className="mb-4 list-disc pl-5">
+                    {careerPaths.map((path, i) => <li key={i}>{path}</li>)}
+                  </ul>
+                  <p className="mb-4">Do you want to build a resume for this path?</p>
+                  <div className="flex gap-2">
+                    <Button onClick={() => { setShowCareerModal(false); navigate('/resume-builder'); }} className="bg-thinksparkPurple-300 hover:bg-thinksparkPurple-400">Yes, Build Resume</Button>
+                    <Button variant="outline" onClick={() => setShowCareerModal(false)}>No, Thanks</Button>
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

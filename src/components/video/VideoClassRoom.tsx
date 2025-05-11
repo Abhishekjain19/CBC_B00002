@@ -1,12 +1,12 @@
-
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Mic, MicOff, Video as VideoIcon, VideoOff, Phone, Users, MessageSquare } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import Layout from '@/components/Layout';
-import WebcamMonitoring from './WebcamMonitoring';
-import { createMeetingRoom, getDailyIframe } from '@/utils/dailyCoApi';
+import ZegoMeetingRoom from "./ZegoMeetingRoom";
+import { useStudentStreak } from "@/context/StudentStreakContext";
+// import { MeetingView } from "@videosdk.live/react-uikit";
 
 interface ClassSession {
   id: string;
@@ -23,176 +23,14 @@ interface VideoClassRoomProps {
   userType: 'student' | 'teacher' | null;
 }
 
-// Simulated participants
-const participants = [
-  { id: 'user-1', name: 'Alex Kim', role: 'student' },
-  { id: 'user-2', name: 'Maya Patel', role: 'student' },
-  { id: 'user-3', name: 'Jordan Smith', role: 'student' },
-  { id: 'user-4', name: 'Taylor Johnson', role: 'student' },
-];
+const VIDEOSDK_API_KEY = "9e49b685-9d29-4edc-be6b-18b60a13dd9c";
+function getMeetingId(session: ClassSession) {
+  return `class-${session.id}`;
+}
 
 const VideoClassRoom = ({ session, onLeave, userType }: VideoClassRoomProps) => {
-  const [micEnabled, setMicEnabled] = useState(true);
-  const [cameraEnabled, setCameraEnabled] = useState(true);
-  const [participantList, setParticipantList] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
-  const [messages, setMessages] = useState<{sender: string, message: string}[]>([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [dailyUrl, setDailyUrl] = useState<string | null>(null);
-  const [joinedCall, setJoinedCall] = useState(false);
-  const localVideoRef = useRef<HTMLVideoElement>(null);
-  const dailyContainerRef = useRef<HTMLDivElement>(null);
-  const dailyCallObject = useRef<any>(null);
-  
-  // Initialize Daily.co meeting room
-  useEffect(() => {
-    const initializeDailyRoom = async () => {
-      try {
-        // Create a unique room name using session ID and timestamp
-        const roomName = `class-${session.id}-${Date.now()}`;
-        const url = await createMeetingRoom(roomName);
-        setDailyUrl(url);
-        
-        toast({
-          title: "Video room created",
-          description: "Your Daily.co video room is ready to join"
-        });
-      } catch (error) {
-        console.error("Error creating Daily.co room:", error);
-        toast({
-          title: "Video room error",
-          description: "Failed to create video room. Using fallback video.",
-          variant: "destructive"
-        });
-      }
-    };
-    
-    initializeDailyRoom();
-    
-    return () => {
-      // Clean up Daily.co call if necessary
-      if (dailyCallObject.current) {
-        dailyCallObject.current.leave();
-      }
-    };
-  }, [session.id]);
-
-  // Join Daily.co call
-  const joinDailyCall = async () => {
-    if (!dailyUrl || !dailyContainerRef.current) return;
-    
-    try {
-      const callObject = await getDailyIframe(dailyUrl, dailyContainerRef.current);
-      if (callObject) {
-        dailyCallObject.current = callObject;
-        setJoinedCall(true);
-        toast({
-          title: "Joined video call",
-          description: "You are now connected to the class video call"
-        });
-      }
-    } catch (error) {
-      console.error("Error joining Daily.co call:", error);
-      toast({
-        title: "Call join error",
-        description: "Failed to join video call. Please try again.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  // Initialize local video stream (for camera preview before joining call)
-  useEffect(() => {
-    let stream: MediaStream | null = null;
-    
-    const startCamera = async () => {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: true
-        });
-        
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = stream;
-        }
-        
-        // Notify when camera is ready
-        toast({
-          title: "Connected to class",
-          description: "Your camera and microphone are now active"
-        });
-      } catch (error) {
-        console.error('Error accessing camera:', error);
-        toast({
-          title: "Camera access error",
-          description: "Could not access your camera or microphone",
-          variant: "destructive"
-        });
-      }
-    };
-    
-    if (cameraEnabled && !joinedCall) {
-      startCamera();
-    }
-    
-    // Cleanup on unmount
-    return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => {
-          track.stop();
-        });
-      }
-    };
-  }, [cameraEnabled, joinedCall]);
-
-  // Toggle microphone
-  const toggleMic = () => {
-    setMicEnabled(!micEnabled);
-    
-    const videoElement = localVideoRef.current;
-    if (videoElement && videoElement.srcObject) {
-      const stream = videoElement.srcObject as MediaStream;
-      stream.getAudioTracks().forEach(track => {
-        track.enabled = !micEnabled;
-      });
-    }
-    
-    toast({
-      title: micEnabled ? "Microphone disabled" : "Microphone enabled",
-      duration: 2000
-    });
-  };
-
-  // Toggle camera
-  const toggleCamera = () => {
-    setCameraEnabled(!cameraEnabled);
-    
-    const videoElement = localVideoRef.current;
-    if (videoElement && videoElement.srcObject) {
-      const stream = videoElement.srcObject as MediaStream;
-      stream.getVideoTracks().forEach(track => {
-        track.enabled = !cameraEnabled;
-      });
-    }
-    
-    toast({
-      title: cameraEnabled ? "Camera disabled" : "Camera enabled",
-      duration: 2000
-    });
-  };
-
-  // Handle sending a chat message
-  const sendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (newMessage.trim()) {
-      setMessages([...messages, {
-        sender: 'You',
-        message: newMessage
-      }]);
-      setNewMessage('');
-    }
-  };
+  const [meetingId] = useState(getMeetingId(session));
+  const { markAttendance, attendedToday } = useStudentStreak();
 
   return (
     <Layout>
@@ -211,171 +49,52 @@ const VideoClassRoom = ({ session, onLeave, userType }: VideoClassRoomProps) => 
             <Phone className="h-4 w-4 mr-2" /> Leave Class
           </Button>
         </div>
-        
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main video section */}
           <div className="lg:col-span-2">
             <div className="bg-black rounded-lg aspect-video relative overflow-hidden">
-              {/* Daily.co container */}
-              <div 
-                ref={dailyContainerRef} 
-                className={`absolute inset-0 ${joinedCall ? 'block' : 'hidden'}`}
-              ></div>
-              
-              {/* Video placeholder when not in call */}
-              {!joinedCall && (
-                <>
-                  <div className="absolute inset-0 flex items-center justify-center flex-col">
-                    <VideoPlaceholder text="Join video call to begin" />
-                    {dailyUrl && (
-                      <Button 
-                        onClick={joinDailyCall}
-                        className="mt-4 bg-thinksparkPurple-300 hover:bg-thinksparkPurple-400"
-                      >
-                        Join Video Call
-                      </Button>
-                    )}
-                  </div>
-                  
-                  {/* Local video feed before joining call */}
-                  {cameraEnabled && (
-                    <div className="absolute bottom-4 right-4 w-1/4 aspect-video rounded overflow-hidden border-2 border-white">
-                      <video
-                        ref={localVideoRef}
-                        autoPlay
-                        playsInline
-                        muted
-                        className="w-full h-full object-cover bg-gray-900"
-                      />
-                    </div>
-                  )}
-                </>
-              )}
+              <ZegoMeetingRoom
+                roomID={`class-${session.id}`}
+                userID={userType ? `${userType}-${session.id}` : `user-${session.id}`}
+                userName={userType === "teacher" ? "Teacher" : "Student"}
+                userType={userType}
+                onEndClass={onLeave}
+              />
             </div>
-            
-            {/* Video controls */}
-            <div className="flex justify-center mt-4 space-x-4">
-              <Button 
-                onClick={toggleMic} 
-                variant={micEnabled ? "default" : "outline"}
-                className={micEnabled ? "bg-thinksparkPurple-300" : ""}
-              >
-                {micEnabled ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
-              </Button>
-              <Button 
-                onClick={toggleCamera} 
-                variant={cameraEnabled ? "default" : "outline"}
-                className={cameraEnabled ? "bg-thinksparkPurple-300" : ""}
-              >
-                {cameraEnabled ? <VideoIcon className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
-              </Button>
-              <Button 
-                onClick={() => setParticipantList(!participantList)} 
-                variant={participantList ? "default" : "outline"}
-                className={participantList ? "bg-thinksparkPurple-300" : ""}
-              >
-                <Users className="h-5 w-5" />
-              </Button>
-              <Button 
-                onClick={() => setChatOpen(!chatOpen)} 
-                variant={chatOpen ? "default" : "outline"}
-                className={chatOpen ? "bg-thinksparkPurple-300" : ""}
-              >
-                <MessageSquare className="h-5 w-5" />
-              </Button>
-            </div>
-            
-            {/* Only show webcam monitoring for teachers */}
-            {userType === 'teacher' && (
-              <div className="mt-6">
-                <WebcamMonitoring />
-              </div>
-            )}
           </div>
-          
-          {/* Side panel for participants or chat */}
+          {/* Side panel for participants or chat (optional, can keep or remove) */}
           <div className="lg:col-span-1">
             <Card className="h-[calc(100vh-250px)] flex flex-col">
               <div className="bg-gray-100 p-3 border-b">
-                <h2 className="font-medium">
-                  {participantList ? "Participants" : "Class Chat"}
-                </h2>
+                <h2 className="font-medium">Class Chat</h2>
               </div>
-              
               <CardContent className="p-0 flex-1 overflow-hidden">
-                {participantList ? (
-                  <div className="h-full overflow-auto p-4">
-                    <ul className="space-y-2">
-                      {participants.map(participant => (
-                        <li 
-                          key={participant.id} 
-                          className="flex items-center justify-between py-2 px-3 hover:bg-gray-50 rounded-md"
-                        >
-                          <div>
-                            <p className="font-medium">{participant.name}</p>
-                            <p className="text-xs text-gray-500 capitalize">{participant.role}</p>
-                          </div>
-                          
-                          {userType === 'teacher' && (
-                            <Button variant="ghost" size="sm">
-                              Mute
-                            </Button>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : (
-                  <div className="flex flex-col h-full">
-                    <div className="flex-1 overflow-auto p-4 space-y-4">
-                      {messages.length > 0 ? (
-                        messages.map((msg, index) => (
-                          <div key={index} className="flex flex-col">
-                            <p className="text-xs text-gray-500">{msg.sender}</p>
-                            <p className="bg-gray-100 p-2 rounded-md">{msg.message}</p>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-center text-gray-500 py-8">
-                          No messages yet
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="border-t p-3">
-                      <form onSubmit={sendMessage} className="flex gap-2">
-                        <input
-                          type="text"
-                          value={newMessage}
-                          onChange={(e) => setNewMessage(e.target.value)}
-                          className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm"
-                          placeholder="Type a message..."
-                        />
-                        <Button 
-                          type="submit"
-                          className="bg-thinksparkPurple-300 hover:bg-thinksparkPurple-400"
-                          disabled={!newMessage.trim()}
-                        >
-                          Send
-                        </Button>
-                      </form>
+                <div className="flex flex-col h-full">
+                  <div className="flex-1 overflow-auto p-4 space-y-4">
+                    {/* You can integrate VideoSDK chat or keep your own */}
+                    <div className="text-center text-gray-500 py-8">
+                      No messages yet
                     </div>
                   </div>
-                )}
+                </div>
               </CardContent>
             </Card>
           </div>
         </div>
+        {userType === "student" && (
+          <div className="my-4">
+            <button
+              className="px-4 py-2 bg-green-600 text-white rounded"
+              onClick={markAttendance}
+              disabled={attendedToday}
+            >
+              {attendedToday ? "Attendance Marked" : "Mark your attendance"}
+            </button>
+          </div>
+        )}
       </div>
     </Layout>
   );
 };
-
-// Placeholder for video elements when no actual video is available
-const VideoPlaceholder = ({ text }: { text: string }) => (
-  <div className="bg-gray-800 w-full h-full flex items-center justify-center text-white">
-    {text}
-  </div>
-);
 
 export default VideoClassRoom;

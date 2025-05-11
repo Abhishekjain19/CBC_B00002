@@ -1,9 +1,9 @@
-
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import StudentDashboard from './dashboard/StudentDashboard';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -38,6 +38,7 @@ const Dashboard = () => {
   return (
     <Layout>
       <div className="container py-8">
+        {userType === 'student' && <StudentDashboard />}
         <h1 className="text-3xl font-bold mb-6">
           Welcome to your {userType === 'student' ? 'Student' : 'Teacher'} Dashboard
         </h1>
@@ -99,6 +100,36 @@ const Dashboard = () => {
             <CardContent>
               <Button className="w-full bg-thinksparkPurple-300 hover:bg-thinksparkPurple-400" onClick={() => navigate('/innovation-hub')}>
                 Enter Innovation Hub
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Resume Builder Card */}
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardHeader>
+              <CardTitle>Resume Builder</CardTitle>
+              <CardDescription>
+                Easily create professional resumes with AI-powered suggestions.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full bg-thinksparkPurple-300 hover:bg-thinksparkPurple-400" onClick={() => navigate('/resume-builder')}>
+                Go to Resume Builder
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Interview Prep Card */}
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardHeader>
+              <CardTitle>Interview Prep</CardTitle>
+              <CardDescription>
+                Practice DSA & Algorithms interview questions, timed quizzes, and get instant AI feedback.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full bg-green-500 hover:bg-green-600 text-white" onClick={() => navigate('/interview-prep')}>
+                Start Interview Prep
               </Button>
             </CardContent>
           </Card>

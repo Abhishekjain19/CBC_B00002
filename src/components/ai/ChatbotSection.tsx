@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +6,8 @@ import { Mic, Send, User, Bot } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { getAIResponse, AIMessage } from '@/utils/openRouterApi';
 import { SpeechRecognitionType, SpeechRecognitionEvent } from '@/types/speechRecognition';
+import { useNavigate } from 'react-router-dom';
+import { useCareerAdvice } from './CareerAdviceContext';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -24,6 +25,9 @@ const ChatbotSection = () => {
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [recentTopics, setRecentTopics] = useState<string[]>([]);
+  const { addSearch, showCareerModal, careerPaths, topicTrend, setShowCareerModal } = useCareerAdvice();
+  const navigate = useNavigate();
 
   // Speech recognition function
   const startListening = () => {
@@ -76,6 +80,17 @@ const ChatbotSection = () => {
     }
   };
 
+  // Helper to extract topic from user message (simple keyword extraction)
+  const extractTopic = (text: string) => {
+    // Naive: use first 2-3 significant words
+    return text
+      .replace(/[^a-zA-Z0-9 ]/g, '')
+      .split(' ')
+      .filter(w => w.length > 3)
+      .slice(0, 2)
+      .join(' ');
+  };
+
   // Handle sending messages
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -91,10 +106,13 @@ const ChatbotSection = () => {
     setInput('');
     setIsProcessing(true);
     
+    // Track topics (shared)
+    addSearch(userMessage.content);
+    
     try {
       // Convert chat history to format expected by OpenRouter API
       const messageHistory: AIMessage[] = [
-        { role: 'system', content: 'You are a helpful AI learning assistant for ThinkSpark educational platform. Provide concise, accurate answers to help students learn.' },
+        { role: 'system', content: 'You are a helpful AI learning assistant for ThinkSpark educational platform. Provide concise, accurate, and detailed answers to help students learn. Please provide a detailed answer of at least 7-8 lines.' },
         ...messages.map(msg => ({ 
           role: msg.role as 'user' | 'assistant', 
           content: msg.content 
@@ -197,6 +215,23 @@ const ChatbotSection = () => {
               </Button>
             </form>
           </div>
+
+          {/* Modal for career suggestion */}
+          {showCareerModal && (
+            <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+              <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-lg">
+                <h3 className="text-lg font-bold mb-2">Career Paths Related to "{topicTrend}"</h3>
+                <ul className="mb-4 list-disc pl-5">
+                  {careerPaths.map((path, i) => <li key={i}>{path}</li>)}
+                </ul>
+                <p className="mb-4">Do you want to build a resume for this path?</p>
+                <div className="flex gap-2">
+                  <Button onClick={() => { setShowCareerModal(false); navigate('/resume-builder'); }} className="bg-thinksparkPurple-300 hover:bg-thinksparkPurple-400">Yes, Build Resume</Button>
+                  <Button variant="outline" onClick={() => setShowCareerModal(false)}>No, Thanks</Button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

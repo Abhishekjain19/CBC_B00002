@@ -1,51 +1,53 @@
-
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import { AlertCircle, Eye, EyeOff } from 'lucide-react';
-
-// Mock detection results
-const mockDetections = [
-  { class: 'cell phone', confidence: 0.92, x: 0.2, y: 0.3, width: 0.1, height: 0.2 },
-  { class: 'laptop', confidence: 0.85, x: 0.6, y: 0.4, width: 0.3, height: 0.2 }
-];
+import * as cocoSsd from '@tensorflow-models/coco-ssd';
+import '@tensorflow/tfjs';
 
 const WebcamMonitoring = () => {
   const [monitoring, setMonitoring] = useState(false);
   const [detections, setDetections] = useState<any[]>([]);
+  const [model, setModel] = useState<any>(null);
+  const [modelLoading, setModelLoading] = useState(true);
+  const [videoReady, setVideoReady] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const detectionIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
+  // Load COCO-SSD model on mount
+  useEffect(() => {
+    setModelLoading(true);
+    cocoSsd.load().then(m => {
+      setModel(m);
+      setModelLoading(false);
+    });
+  }, []);
+
   // Start monitoring with webcam
   const startMonitoring = async () => {
+    console.log('Start Monitoring clicked');
     try {
+      setVideoReady(false);
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      
+      console.log('Camera stream acquired', stream);
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        setMonitoring(true);
-        
-        // Mock detection process
-        const detectionInterval = setInterval(() => {
-          setDetections(mockDetections);
-          
-          // Draw bounding boxes
-          drawDetections();
-          
-          // Check for phone detection
-          const phoneDetection = mockDetections.find(d => d.class === 'cell phone');
-          if (phoneDetection) {
-            toast({
-              title: "Phone detected",
-              description: "A student appears to be using a phone during class",
-              variant: "destructive"
-            });
+        videoRef.current.onloadeddata = () => {
+          setVideoReady(true);
+          videoRef.current?.play();
+          console.log('Video is ready and playing');
+        };
+        // Fallback: if onloadeddata doesn't fire, set videoReady after a short delay
+        setTimeout(() => {
+          if (videoRef.current && videoRef.current.readyState >= 2) {
+            setVideoReady(true);
+            videoRef.current.play();
+            console.log('Video is ready (fallback)');
           }
-        }, 5000);
-        
-        // Cleanup on stop
-        return () => clearInterval(detectionInterval);
+        }, 1000);
+        setMonitoring(true);
       }
     } catch (error) {
       console.error('Error accessing camera for monitoring:', error);
@@ -59,15 +61,17 @@ const WebcamMonitoring = () => {
   
   // Stop monitoring
   const stopMonitoring = () => {
-    const videoElement = videoRef.current;
-    if (videoElement && videoElement.srcObject) {
-      const stream = videoElement.srcObject as MediaStream;
-      stream.getTracks().forEach(track => {
-        track.stop();
-      });
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach(track => track.stop());
     }
     setMonitoring(false);
     setDetections([]);
+    setVideoReady(false);
+    if (detectionIntervalRef.current) {
+      clearInterval(detectionIntervalRef.current);
+      detectionIntervalRef.current = null;
+    }
     
     // Clear canvas
     const canvas = canvasRef.current;
@@ -79,52 +83,58 @@ const WebcamMonitoring = () => {
     }
   };
   
+  // Run detection using requestAnimationFrame for smoother updates
+  const detectFrame = useCallback(async () => {
+    if (!model || !videoRef.current || !monitoring || !videoReady) {
+      console.log('Detection skipped: not ready', { model, monitoring, videoReady });
+      return;
+    }
+    const predictions = await model.detect(videoRef.current);
+    console.log('Predictions:', predictions);
+    const phoneDetections = predictions.filter((d: any) => d.class === 'cell phone');
+    setDetections(phoneDetections);
+    drawDetections(phoneDetections);
+    if (phoneDetections.length > 0) {
+      toast({
+        title: "Phone detected",
+        description: "A student appears to be using a phone during class",
+        variant: "destructive"
+      });
+    }
+    if (monitoring) {
+      requestAnimationFrame(detectFrame);
+    }
+  }, [model, monitoring, videoReady]);
+
+  // Start detection loop when monitoring, model, and video are ready
+  useEffect(() => {
+    if (monitoring && model && videoReady) {
+      detectFrame();
+    }
+    // Cleanup: nothing needed for requestAnimationFrame
+    return () => {};
+  }, [monitoring, model, videoReady, detectFrame]);
+
   // Draw bounding boxes on canvas
-  const drawDetections = () => {
+  const drawDetections = (detectionsToDraw = detections) => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    
-    if (!video || !canvas || !detections.length) return;
-    
+    if (!video || !canvas || !detectionsToDraw.length) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    
-    // Set canvas dimensions to match video
     canvas.width = video.videoWidth || 640;
     canvas.height = video.videoHeight || 480;
-    
-    // Clear previous drawings
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Draw each detection
-    detections.forEach(detection => {
-      const x = detection.x * canvas.width;
-      const y = detection.y * canvas.height;
-      const width = detection.width * canvas.width;
-      const height = detection.height * canvas.height;
-      
-      // Set style based on object class
-      ctx.strokeStyle = detection.class === 'cell phone' ? '#ff0000' : '#00ff00';
+    detectionsToDraw.forEach((detection: any) => {
+      const [x, y, width, height] = detection.bbox;
+      ctx.strokeStyle = '#ff0000';
       ctx.lineWidth = 2;
-      
-      // Draw rectangle
       ctx.strokeRect(x, y, width, height);
-      
-      // Add label
-      ctx.fillStyle = ctx.strokeStyle;
+      ctx.fillStyle = '#ff0000';
       ctx.font = '16px Arial';
-      ctx.fillText(`${detection.class} (${(detection.confidence * 100).toFixed(0)}%)`, x, y - 5);
+      ctx.fillText(`${detection.class} (${Math.round(detection.score * 100)}%)`, x, y - 5);
     });
   };
-  
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (monitoring) {
-        stopMonitoring();
-      }
-    };
-  }, [monitoring]);
 
   return (
     <Card>
@@ -182,15 +192,27 @@ const WebcamMonitoring = () => {
           ) : (
             <div className="flex flex-col items-center justify-center py-8">
               <p className="text-center text-gray-600 mb-4">
-                Start monitoring student webcams to detect phones and other distractions
+                {modelLoading
+                  ? 'Loading AI model for phone detection...'
+                  : 'Start monitoring student webcams to detect phones and other distractions'}
               </p>
-              <Button
-                onClick={startMonitoring}
-                className="bg-thinksparkPurple-300 hover:bg-thinksparkPurple-400"
-              >
-                <Eye className="h-4 w-4 mr-1" />
-                Start Monitoring
-              </Button>
+              {modelLoading ? (
+                <Button
+                  className="w-full bg-gray-300 text-gray-500 cursor-not-allowed"
+                  disabled
+                >
+                  Please wait until COCO-SSD is fully integrated...
+                </Button>
+              ) : (
+                <Button
+                  onClick={startMonitoring}
+                  className="bg-thinksparkPurple-300 hover:bg-thinksparkPurple-400 w-full"
+                  disabled={!model}
+                >
+                  <Eye className="h-4 w-4 mr-1" />
+                  Start Monitoring
+                </Button>
+              )}
             </div>
           )}
         </div>

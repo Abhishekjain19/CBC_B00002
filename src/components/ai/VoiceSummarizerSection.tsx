@@ -7,6 +7,8 @@ import { Mic, StopCircle, RefreshCw } from 'lucide-react';
 import { SpeechRecognitionType } from '@/types/speechRecognition';
 import { getAIResponse, AIMessage } from '@/utils/openRouterApi';
 import { toast } from '@/hooks/use-toast';
+import { useCareerAdvice } from './CareerAdviceContext';
+import { useNavigate } from 'react-router-dom';
 
 const VoiceSummarizerSection = () => {
   const [isListening, setIsListening] = useState(false);
@@ -15,6 +17,8 @@ const VoiceSummarizerSection = () => {
   const [loading, setLoading] = useState(false);
   const [language, setLanguage] = useState('english');
   const recognitionRef = useRef<SpeechRecognitionType | null>(null);
+  const { addSearch, showCareerModal, careerPaths, topicTrend, setShowCareerModal } = useCareerAdvice();
+  const navigate = useNavigate();
   
   // Initialize speech recognition
   useEffect(() => {
@@ -75,12 +79,14 @@ const VoiceSummarizerSection = () => {
     setLoading(true);
     try {
       const messages: AIMessage[] = [
-        { role: "system" as const, content: `You are a helpful AI that creates concise and informative summaries. Respond with a well-structured summary ${language === 'english' ? 'only' : `in ${language} language only`}.` },
+        { role: "system" as const, content: `You are a helpful AI that creates concise and informative summaries. Respond with a well-structured summary ${language === 'english' ? 'only' : `in ${language} language only`}. Please provide a detailed summary of at least 7-8 lines.` },
         { role: "user" as const, content: `Create a summary ${language !== 'english' ? `in ${language} language ` : ''}of the following text: ${transcript}` }
       ];
       
       const response = await getAIResponse(messages);
       setSummary(response);
+      // Track topics (shared)
+      addSearch(transcript);
     } catch (error) {
       console.error('Error generating summary:', error);
       toast({
@@ -101,6 +107,40 @@ const VoiceSummarizerSection = () => {
       recognitionRef.current?.stop();
     }
   };
+
+  // Play summary using speech synthesis
+  const playSummary = () => {
+    if (!summary) return;
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel(); // Stop any previous speech
+      const utter = new window.SpeechSynthesisUtterance(summary);
+      utter.lang = language === 'english' ? 'en-US' : language;
+      window.speechSynthesis.speak(utter);
+    } else {
+      toast({
+        title: "Not supported",
+        description: "Speech synthesis is not supported in this browser.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Automatically play summary when it changes
+  useEffect(() => {
+    if (summary) {
+      playSummary();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [summary]);
+
+  // Stop speech synthesis when unmounting
+  useEffect(() => {
+    return () => {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
 
   return (
     <Card>
@@ -185,6 +225,23 @@ const VoiceSummarizerSection = () => {
               readOnly
               className="min-h-[100px]"
             />
+            <Button onClick={playSummary} variant="secondary" className="mt-2">Play Voice</Button>
+          </div>
+        )}
+        
+        {showCareerModal && (
+          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-lg">
+              <h3 className="text-lg font-bold mb-2">Career Paths Related to "{topicTrend}"</h3>
+              <ul className="mb-4 list-disc pl-5">
+                {careerPaths.map((path, i) => <li key={i}>{path}</li>)}
+              </ul>
+              <p className="mb-4">Do you want to build a resume for this path?</p>
+              <div className="flex gap-2">
+                <Button onClick={() => { setShowCareerModal(false); navigate('/resume-builder'); }} className="bg-thinksparkPurple-300 hover:bg-thinksparkPurple-400">Yes, Build Resume</Button>
+                <Button variant="outline" onClick={() => setShowCareerModal(false)}>No, Thanks</Button>
+              </div>
+            </div>
           </div>
         )}
       </CardContent>

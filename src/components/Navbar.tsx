@@ -1,12 +1,20 @@
-
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Logo from './Logo';
 import { Button } from '@/components/ui/button';
 import { Menu, X } from 'lucide-react';
 
 const Navbar = () => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const navigate = useNavigate();
+
+  const isLoggedIn = typeof window !== 'undefined' && sessionStorage.getItem('isLoggedIn');
+  const userType = typeof window !== 'undefined' ? sessionStorage.getItem('userType') : null;
+
+  const handleLogout = () => {
+    sessionStorage.clear();
+    navigate('/');
+  };
 
   const toggleMobileNav = () => {
     setMobileNavOpen(!mobileNavOpen);
@@ -14,10 +22,13 @@ const Navbar = () => {
 
   const navItems = [
     { label: 'Home', path: '/' },
+    { label: 'Dashboard', path: '/dashboard' },
     { label: 'Quiz Arena', path: '/quiz' },
+    { label: 'Interview Prep', path: '/interview-prep' },
     { label: 'AI Tools', path: '/ai-tools' },
     { label: 'Video Classes', path: '/video-classes' },
     { label: 'Innovation Hub', path: '/innovation-hub' },
+    ...((isLoggedIn && userType !== 'teacher') ? [{ label: 'Resume Progress', path: '/resume-progress' }] : []),
   ];
 
   return (
@@ -38,16 +49,27 @@ const Navbar = () => {
                   className="text-gray-700 hover:text-thinksparkPurple-400 transition-colors"
                 >
                   {item.label}
+                  {item.path === '/resume-progress' && sessionStorage.getItem('resumePromptsCompleted') !== 'complete' ? (
+                    <span className="ml-2 text-xs bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded">{sessionStorage.getItem('resumePromptsCount') || 0}/5 prompts</span>
+                  ) : null}
                 </Link>
               ))}
             </div>
             <div className="flex items-center space-x-3">
-              <Button variant="outline" asChild>
-                <Link to="/login">Log In</Link>
-              </Button>
-              <Button className="bg-thinksparkPurple-300 hover:bg-thinksparkPurple-400" asChild>
-                <Link to="/signup">Sign Up</Link>
-              </Button>
+              {isLoggedIn ? (
+                <Button variant="outline" onClick={handleLogout}>
+                  Log Out
+                </Button>
+              ) : (
+                <>
+                  <Button variant="outline" asChild>
+                    <Link to="/login">Log In</Link>
+                  </Button>
+                  <Button className="bg-thinksparkPurple-300 hover:bg-thinksparkPurple-400" asChild>
+                    <Link to="/signup">Sign Up</Link>
+                  </Button>
+                </>
+              )}
             </div>
           </div>
 
@@ -73,19 +95,30 @@ const Navbar = () => {
                   onClick={() => setMobileNavOpen(false)}
                 >
                   {item.label}
+                  {item.path === '/resume-progress' && sessionStorage.getItem('resumePromptsCompleted') !== 'complete' ? (
+                    <span className="ml-2 text-xs bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded">{sessionStorage.getItem('resumePromptsCount') || 0}/5 prompts</span>
+                  ) : null}
                 </Link>
               ))}
               <div className="flex flex-col space-y-2 pt-2">
-                <Button variant="outline" asChild className="w-full">
-                  <Link to="/login" onClick={() => setMobileNavOpen(false)}>
-                    Log In
-                  </Link>
-                </Button>
-                <Button className="bg-thinksparkPurple-300 hover:bg-thinksparkPurple-400 w-full" asChild>
-                  <Link to="/signup" onClick={() => setMobileNavOpen(false)}>
-                    Sign Up
-                  </Link>
-                </Button>
+                {isLoggedIn ? (
+                  <Button variant="outline" className="w-full" onClick={() => { handleLogout(); setMobileNavOpen(false); }}>
+                    Log Out
+                  </Button>
+                ) : (
+                  <>
+                    <Button variant="outline" asChild className="w-full">
+                      <Link to="/login" onClick={() => setMobileNavOpen(false)}>
+                        Log In
+                      </Link>
+                    </Button>
+                    <Button className="bg-thinksparkPurple-300 hover:bg-thinksparkPurple-400 w-full" asChild>
+                      <Link to="/signup" onClick={() => setMobileNavOpen(false)}>
+                        Sign Up
+                      </Link>
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </div>

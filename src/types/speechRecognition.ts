@@ -1,4 +1,3 @@
-
 export interface SpeechRecognitionEvent extends Event {
   results: SpeechRecognitionResultList;
 }
@@ -21,6 +20,7 @@ export type SpeechRecognitionType = {
   lang: string;
   interimResults: boolean;
   maxAlternatives: number;
+  continuous: boolean;
   onstart: () => void;
   onresult: (event: SpeechRecognitionEvent) => void;
   onerror: (event: Event) => void;
