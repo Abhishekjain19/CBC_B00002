@@ -1,73 +1,52 @@
-# Welcome to your Lovable project
+# 🎓 ThinkSpark – Smart Education & Proctoring Platform
 
-## Project info
+**ThinkSpark** is an all-in-one smart education platform designed to empower students and educators through innovative tools and intelligent systems. From real-time proctoring to performance analytics, our platform enhances online learning and evaluation with a modern, secure, and student-centered approach.
 
-**URL**: https://lovable.dev/projects/3a23ba52-cc2b-4683-a55b-e94f8e786611
+---
 
-## How can I edit this code?
+## 🚀 Features
 
-There are several ways of editing your application.
+### 🔒 Individual Student Proctoring System
+- Uses AI-powered object detection (YOLOv8) to identify distractions such as mobile phones.
+- Real-time webcam monitoring during live classes or exams.
+- Visual alerts and bounding boxes highlight policy violations.
+- Teacher/admin monitoring dashboard.
 
-**Use Lovable**
+### 📊 Student Performance Analyzer
+- Tracks quiz results, class participation, and learning patterns.
+- Visualizes individual progress over time.
+- Generates actionable insights to improve learning outcomes.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/3a23ba52-cc2b-4683-a55b-e94f8e786611) and start prompting.
+### 🎯 Interview Preparation Toolkit
+- Curated set of coding questions and behavioral interview scenarios.
+- Domain-specific practice (CS, IT, AIML, etc.)
+- Track readiness level and get smart tips.
 
-Changes made via Lovable will be committed automatically to this repo.
+### 🧠 AI-Based Quiz Generator
+- Select domain → subject → topic → difficulty level.
+- Generates quizzes using AI for tailored learning.
+- Auto-evaluation and feedback.
 
-**Use your preferred IDE**
+### 🎥 Live Video Classes
+- Powered by [Daily.co](https://www.daily.co).
+- Real-time communication with screen sharing and chat.
+- Scheduling and notification system for teachers and students.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### 💡 Innovation Hub
+- A space for students to post tech solutions and innovative ideas.
+- Teachers can review and provide constructive feedback.
+- Includes image uploads and community discussion.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+---
 
-Follow these steps:
+## 🛠️ Built With
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+- **Frontend**: React.js, TailwindCSS, Framer Motion  
+- **Backend/DB**: Supabase  
+- **AI Integration**: OpenRouter AI API, YOLOv8 (Ultralytics)  
+- **Video Communication**: Daily.co  
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+---
 
-# Step 3: Install the necessary dependencies.
-npm i
+## 📂 Folder Structure (Example)
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/3a23ba52-cc2b-4683-a55b-e94f8e786611) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
